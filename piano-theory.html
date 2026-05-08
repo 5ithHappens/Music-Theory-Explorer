@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Piano — Keys & Major Scales</title>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0d0b1a; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    /* ── THEORY ──────────────────────────────────────────────────────── */
+    const NOTES   = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    const M_IVLS  = [0,2,4,5,7,9,11];
+    const IS_NAT  = [true,false,true,false,true,true,false,true,false,true,false,true];
+    const DEG_LBL = ['Root','2nd','3rd','4th','5th','6th','7th'];
+    const CLR     = {0:'#FFD700',1:'#88C0D0',2:'#FF6B6B',3:'#88C0D0',4:'#4ECDC4',5:'#88C0D0',6:'#88C0D0'};
+    const T_CLR   = '#F5A623';
+    const S_CLR   = '#E74C3C';
+
+    const majorScale = r => M_IVLS.map(i => (r+i)%12);
+
+    /* ── CHROMATIC STRIP ─────────────────────────────────────────────── */
+    function ChromaticStrip({ root }) {
+      const scale = majorScale(root);
+      const BOX = 58;
+
+      const boxes = Array.from({length:13}, (_,i) => {
+        const ni = (root+i)%12;
+        const deg = scale.indexOf(ni);
+        return { ni, name:NOTES[ni], deg, inScale:deg>=0, nat:IS_NAT[ni] };
+      });
+
+      const scalePoses = boxes.map((b,pos) => ({...b,pos})).filter(b => b.inScale);
+      const intervals  = scalePoses.slice(0,-1).map((b,i) => {
+        const next = scalePoses[i+1];
+        const span = next.pos - b.pos;
+        return { from:b.pos, to:next.pos, span, label:span===2?'T':'S', isTone:span===2 };
+      });
+
+      return (
+        <div style={{overflowX:'auto', padding:'4px 0 12px'}}>
+          <div style={{width:13*BOX, position:'relative', userSelect:'none'}}>
+            <div style={{display:'flex'}}>
+              {boxes.map(({ni,name,deg,inScale,nat},i) => {
+                const bg = inScale ? CLR[deg] : nat ? '#1d1b30' : '#131225';
+                return (
+                  <div key={i} style={{
+                    width:BOX, height:82,
+                    border:`2px solid ${inScale ? CLR[deg] : '#2a2840'}`,
+                    background:bg, boxSizing:'border-box',
+                    display:'flex', flexDirection:'column',
+                    alignItems:'center', justifyContent:'center', gap:1,
+                    transition:'background 0.3s',
+                  }}>
+                    {inScale && (
+                      <div style={{fontSize:8,fontWeight:700,color:'rgba(0,0,0,0.6)',letterSpacing:0.3,textTransform:'uppercase'}}>
+                        {DEG_LBL[deg]}
+                      </div>
+                    )}
+                    <div style={{fontSize:20,fontWeight:700,color:inScale?'#000':nat?'#444':'#2a2840',fontFamily:'Georgia,serif'}}>
+                      {name}
+                    </div>
+                    {inScale && (
+                      <div style={{fontSize:13,color:'rgba(0,0,0,0.5)',fontWeight:700}}>
+                        {deg+1}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{position:'relative', height:52}}>
+              {intervals.map((iv,i) => {
+                const lc = iv.from*BOX + BOX/2;
+                const rc = iv.to*BOX   + BOX/2;
+                const w  = rc - lc;
+                const c  = iv.isTone ? T_CLR : S_CLR;
+                return (
+                  <div key={i} style={{position:'absolute', left:lc, top:8, width:w,
+                    display:'flex', flexDirection:'column', alignItems:'center', gap:3}}>
+                    <div style={{width:'100%', position:'relative', height:10}}>
+                      <div style={{position:'absolute', top:4, left:8, right:8, height:2, background:c}}/>
+                      <div style={{position:'absolute', top:0, left:4, width:10, height:10, borderRadius:'50%', background:c}}/>
+                      <div style={{position:'absolute', top:0, right:4, width:10, height:10, borderRadius:'50%', background:c}}/>
+                    </div>
+                    <div style={{background:c, color:'#fff', borderRadius:6,
+                      padding:'2px 10px', fontSize:14, fontWeight:900, letterSpacing:1}}>
+                      {iv.label}
+                    </div>
+                    <div style={{fontSize:10, color:'#666'}}>
+                      {iv.isTone ? '2 semitones' : '1 semitone'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── PIANO KEYBOARD ──────────────────────────────────────────────── */
+    function PianoKeyboard({ root }) {
+      const scale = majorScale(root);
+      const WW=48, WH=148, BW=30, BH=92;
+      const WHITE_NOTES   = [0,2,4,5,7,9,11];
+      const BLACK_OFFSETS = [[0,1],[1,3],[3,6],[4,8],[5,10]];
+      const totalW = 14 * WW;
+
+      return (
+        <div style={{overflowX:'auto'}}>
+          <div style={{width:totalW, height:WH+10, position:'relative',
+            background:'#111', borderRadius:10, padding:'6px 0 0',
+            boxShadow:'inset 0 -4px 12px rgba(0,0,0,0.5)'}}>
+
+            {[0,1].map(oct => WHITE_NOTES.map((ni,wi) => {
+              const deg = scale.indexOf(ni);
+              const inScale = deg >= 0;
+              const x = (oct*7+wi)*WW;
+              return (
+                <div key={`w${oct}${wi}`} style={{
+                  position:'absolute', left:x+1, top:0,
+                  width:WW-2, height:WH,
+                  background: inScale ? CLR[deg] : '#ede8e0',
+                  borderRadius:'0 0 8px 8px', border:'1px solid #bbb',
+                  display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end',
+                  paddingBottom:10, boxSizing:'border-box', zIndex:1,
+                  boxShadow: inScale ? `0 0 12px ${CLR[deg]}88` : 'none',
+                  transition:'background 0.3s',
+                }}>
+                  <span style={{fontSize:12, fontWeight:700, color:inScale?'#000':'#bbb'}}>{NOTES[ni]}</span>
+                  {inScale && <span style={{fontSize:10,color:'rgba(0,0,0,0.55)'}}>{deg+1}</span>}
+                </div>
+              );
+            }))}
+
+            {[0,1].map(oct => BLACK_OFFSETS.map(([wp,ni]) => {
+              const deg = scale.indexOf(ni);
+              const inScale = deg >= 0;
+              const x = (oct*7+wp)*WW + WW - BW/2;
+              return (
+                <div key={`b${oct}${ni}`} style={{
+                  position:'absolute', left:x, top:0,
+                  width:BW, height:BH,
+                  background: inScale ? CLR[deg] : '#1e1a28',
+                  borderRadius:'0 0 5px 5px', border:'1px solid #000', zIndex:2,
+                  display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end',
+                  paddingBottom:6, boxSizing:'border-box',
+                  boxShadow: inScale ? `0 0 10px ${CLR[deg]}88` : '2px 4px 8px rgba(0,0,0,0.6)',
+                  transition:'background 0.3s',
+                }}>
+                  {inScale && <>
+                    <span style={{fontSize:9,fontWeight:700,color:'#000'}}>{NOTES[ni]}</span>
+                    <span style={{fontSize:8,color:'rgba(0,0,0,0.6)'}}>{deg+1}</span>
+                  </>}
+                </div>
+              );
+            }))}
+          </div>
+        </div>
+      );
+    }
+
+    /* ── APP ─────────────────────────────────────────────────────────── */
+    function App() {
+      const [key, setKey]   = useState(0);
+      const [view, setView] = useState('chromatic');
+      const scale = majorScale(key);
+      const chord = [scale[0], scale[2], scale[4]];
+
+      const btn = (active, onClick, children) => (
+        <button onClick={onClick} style={{
+          padding:'9px 22px', borderRadius:20, border:'none', cursor:'pointer', fontSize:13,
+          fontWeight:700, transition:'all 0.2s',
+          background: active ? '#FFD700' : '#1e1c30',
+          color:       active ? '#000'    : '#666',
+        }}>{children}</button>
+      );
+
+      return (
+        <div style={{fontFamily:"'Georgia', serif", background:'#0d0b1a', minHeight:'100vh',
+          color:'#e8e0f0', padding:'24px 20px 48px', maxWidth:900, margin:'0 auto'}}>
+
+          <div style={{textAlign:'center', marginBottom:28}}>
+            <div style={{fontSize:10,letterSpacing:4,color:'#444',textTransform:'uppercase',marginBottom:6}}>
+              Interactive Lesson
+            </div>
+            <h1 style={{margin:0, fontSize:34, color:'#FFD700', fontFamily:"'Crimson Pro',serif",
+              fontWeight:700, textShadow:'0 0 40px rgba(255,215,0,0.25)', letterSpacing:1}}>
+              🎹  Piano — Keys &amp; Major Scales
+            </h1>
+            <p style={{color:'#4a4660', margin:'6px 0 0', fontSize:14}}>
+              How scales and chords are built from a pattern of tones and semitones
+            </p>
+          </div>
+
+          <div style={{marginBottom:22}}>
+            <div style={{textAlign:'center', marginBottom:10, fontSize:10, letterSpacing:3,
+              color:'#3a3858', textTransform:'uppercase'}}>Choose a key</div>
+            <div style={{display:'flex', justifyContent:'center', gap:6, flexWrap:'wrap'}}>
+              {NOTES.map((n,i) => (
+                <button key={i} onClick={() => setKey(i)} style={{
+                  width:52, height:52, borderRadius:'50%', cursor:'pointer', fontSize:14,
+                  fontWeight:700, transition:'all 0.18s',
+                  border:`2px solid ${key===i ? '#FFD700' : '#2a2840'}`,
+                  background: key===i ? '#FFD700' : IS_NAT[i] ? '#1d1b30' : '#131225',
+                  color:       key===i ? '#000'    : IS_NAT[i] ? '#ccc'    : '#666',
+                  boxShadow:   key===i ? '0 0 18px rgba(255,215,0,0.35)' : 'none',
+                }}>{n}</button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{background:'#16132a', border:'1px solid #2a2840', borderRadius:12,
+            padding:'14px 20px', marginBottom:24, textAlign:'center'}}>
+            <div style={{fontFamily:"'Crimson Pro',serif", fontSize:22, color:'#FFD700', marginBottom:10}}>
+              {NOTES[key]} Major Scale
+            </div>
+            <div style={{display:'flex', justifyContent:'center', gap:8, flexWrap:'wrap', marginBottom:10}}>
+              {scale.map((ni,deg) => (
+                <div key={deg} style={{
+                  padding:'5px 13px', borderRadius:20, fontSize:14, fontWeight:700,
+                  background: CLR[deg], color:'#000',
+                  outline: [0,2,4].includes(deg) ? '2px solid rgba(255,255,255,0.5)' : 'none',
+                  outlineOffset:2,
+                }}>
+                  {NOTES[ni]} <span style={{opacity:0.55, fontSize:11}}>{deg+1}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{fontSize:13, color:'#5a5680'}}>
+              <strong style={{color:'#FFD700'}}>{NOTES[key]} major chord</strong>{' = '}
+              <span style={{color:CLR[0]}}>{NOTES[chord[0]]}</span>{' + '}
+              <span style={{color:CLR[2]}}>{NOTES[chord[1]]}</span>{' + '}
+              <span style={{color:CLR[4]}}>{NOTES[chord[2]]}</span>
+              <span style={{color:'#444'}}>{' (1st + 3rd + 5th)'}</span>
+            </div>
+          </div>
+
+          <div style={{display:'flex', justifyContent:'center', gap:6, marginBottom:22,
+            background:'#13112a', padding:5, borderRadius:24, maxWidth:340, margin:'0 auto 22px'}}>
+            {btn(view==='chromatic', ()=>setView('chromatic'), '⬛ Chromatic View')}
+            {btn(view==='keyboard',  ()=>setView('keyboard'),  '⬜ Keyboard View')}
+          </div>
+
+          {view === 'chromatic' ? (
+            <div>
+              <h3 style={{fontFamily:"'Crimson Pro',serif", color:'#a090c8', borderBottom:'1px solid #2a2840',
+                paddingBottom:8, marginBottom:8, fontSize:18}}>
+                All Semitones — Equal Spacing
+              </h3>
+              <p style={{color:'#4a4660', fontSize:13, marginBottom:14}}>
+                Every box is one semitone wide. Scale notes are highlighted.{' '}
+                <strong style={{color:T_CLR}}>T = Tone</strong> (2 semitones) ·{' '}
+                <strong style={{color:S_CLR}}>S = Semitone</strong> (1 semitone).
+                The pattern is always the same, whatever key you start from.
+              </p>
+              <ChromaticStrip root={key}/>
+              <div style={{marginTop:14, padding:'10px 16px', background:'#16132a',
+                borderRadius:8, fontSize:14, color:'#7a6890', textAlign:'center',
+                border:'1px solid #2a2840'}}>
+                Major scale pattern always:{' '}
+                {['T','T','S','T','T','T','S'].map((x,i) => (
+                  <span key={i} style={{
+                    display:'inline-block', margin:'0 4px',
+                    padding:'2px 8px', borderRadius:6, fontSize:13, fontWeight:700,
+                    background: x==='T' ? T_CLR+'33' : S_CLR+'33',
+                    color:       x==='T' ? T_CLR      : S_CLR,
+                  }}>{x}</span>
+                ))}
+                {' '}— change the key and the same pattern just shifts along.
+              </div>
+            </div>
+          ) : (
+            <div>
+              <h3 style={{fontFamily:"'Crimson Pro',serif", color:'#a090c8', borderBottom:'1px solid #2a2840',
+                paddingBottom:8, marginBottom:8, fontSize:18}}>
+                Traditional Piano Keyboard
+              </h3>
+              <p style={{color:'#4a4660', fontSize:13, marginBottom:14}}>
+                The same notes on a real piano. Notice that the gaps between white keys are not equal —
+                some pairs have a black key (= a tone), some do not (= a semitone). That's why the
+                pattern looks uneven here but is perfectly regular in the chromatic view.
+              </p>
+              <PianoKeyboard root={key}/>
+              <div style={{marginTop:14, padding:'10px 16px', background:'#16132a',
+                borderRadius:8, fontSize:13, color:'#5a5680', border:'1px solid #2a2840'}}>
+                💡 Try switching back to Chromatic View to see why E→F and B→C are only semitones (no black key between them).
+              </div>
+            </div>
+          )}
+
+          <div style={{marginTop:28, padding:'12px 18px', background:'#16132a',
+            borderRadius:12, border:'1px solid #2a2840',
+            display:'flex', gap:18, flexWrap:'wrap', alignItems:'center'}}>
+            <span style={{fontSize:10, color:'#3a3858', letterSpacing:2, textTransform:'uppercase'}}>Legend</span>
+            {[
+              {c:CLR[0], l:'Root (1st)'},
+              {c:CLR[2], l:'3rd (chord tone)'},
+              {c:CLR[4], l:'5th (chord tone)'},
+              {c:CLR[1], l:'Other scale notes'},
+              {c:T_CLR,  l:'Tone (T)'},
+              {c:S_CLR,  l:'Semitone (S)'},
+            ].map(({c,l}) => (
+              <div key={l} style={{display:'flex', alignItems:'center', gap:6}}>
+                <div style={{width:12,height:12,borderRadius:'50%',background:c}}/>
+                <span style={{fontSize:12,color:'#665e80'}}>{l}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>

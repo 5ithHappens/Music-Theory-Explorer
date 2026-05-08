@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Guitar — Keys & Major Scales</title>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0d0b1a; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    /* ── THEORY ──────────────────────────────────────────────────────── */
+    const NOTES     = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    const M_IVLS    = [0,2,4,5,7,9,11];
+    const IS_NAT    = [true,false,true,false,true,true,false,true,false,true,false,true];
+    const CLR       = {0:'#FFD700',1:'#88C0D0',2:'#FF6B6B',3:'#88C0D0',4:'#4ECDC4',5:'#88C0D0',6:'#88C0D0'};
+    const OPEN_STR  = [4,9,2,7,11,4];
+    const STR_NAMES = ['E','A','D','G','B','e'];
+
+    const majorScale = r => M_IVLS.map(i => (r+i)%12);
+
+    /* ── CHORD VOICINGS ──────────────────────────────────────────────── */
+    const OPEN_VOICINGS = {
+      0:  { frets:[-1,3,2,0,1,0], sf:0 },
+      2:  { frets:[-1,-1,0,2,3,2], sf:0 },
+      4:  { frets:[0,2,2,1,0,0],  sf:0 },
+      5:  { frets:[1,3,3,2,1,1],  sf:1 },
+      7:  { frets:[3,2,0,0,0,3],  sf:0 },
+      9:  { frets:[-1,0,2,2,2,0], sf:0 },
+      11: { frets:[-1,2,4,4,4,2], sf:2 },
+    };
+
+    function getVoicing(root) {
+      if (OPEN_VOICINGS[root] != null) {
+        const v = OPEN_VOICINGS[root];
+        return { ...v, label: v.frets.includes(0) ? 'Open chord' : 'Barre chord' };
+      }
+      const ef = (root-4+12)%12, af = (root-9+12)%12;
+      if(ef>=1&&ef<=7)
+        return { frets:[ef,ef+2,ef+2,ef+1,ef,ef], sf:ef, label:`E-shape barre, fret ${ef}` };
+      return { frets:[-1,af,af+2,af+2,af+2,af], sf:af, label:`A-shape barre, fret ${af}` };
+    }
+
+    /* ── CHORD DIAGRAM ───────────────────────────────────────────────── */
+    function ChordDiagram({ root }) {
+      const scale   = majorScale(root);
+      const voicing = getVoicing(root);
+      const { frets, sf, label } = voicing;
+      const showNut    = sf <= 1;
+      const dispStart  = showNut ? 1 : sf;
+      const SHOW_FRETS = 5;
+      const S=6, CW=40, RH=36, ML=44, MT=52;
+      const W = ML + (S-1)*CW + 28;
+      const H = MT + SHOW_FRETS*RH + 36;
+      const noteAt = (si,f) => f<=0 ? OPEN_STR[si] : (OPEN_STR[si]+f)%12;
+
+      return (
+        <div style={{display:'flex', flexDirection:'column', alignItems:'center'}}>
+          <div style={{fontSize:12, color:'#6a5e80', marginBottom:4}}>{label}</div>
+          <svg width={W} height={H} style={{overflow:'visible'}}>
+            {STR_NAMES.map((n,si) => (
+              <text key={si} x={ML+si*CW} y={H-4} textAnchor="middle"
+                fontSize={11} fill="#6a5e80" fontWeight="700">{n}</text>
+            ))}
+            {!showNut && (
+              <text x={ML-8} y={MT+RH/2+4} textAnchor="end" fontSize={11} fill="#aaa">{dispStart}</text>
+            )}
+            {showNut && (
+              <rect x={ML} y={MT-5} width={(S-1)*CW} height={5} fill="#c8b460" rx={2}/>
+            )}
+            {Array.from({length:SHOW_FRETS+1}, (_,fi) => (
+              <line key={fi} x1={ML} y1={MT+fi*RH} x2={ML+(S-1)*CW} y2={MT+fi*RH}
+                stroke="#2e2c48" strokeWidth={1}/>
+            ))}
+            {Array.from({length:S}, (_,si) => (
+              <line key={si} x1={ML+si*CW} y1={MT} x2={ML+si*CW} y2={MT+SHOW_FRETS*RH}
+                stroke="#4a4060" strokeWidth={1.5}/>
+            ))}
+            {frets.map((f,si) => {
+              const x = ML+si*CW;
+              if(f===-1) return (
+                <text key={si} x={x} y={MT-16} textAnchor="middle"
+                  fontSize={16} fill="#e74c3c" fontWeight="700">×</text>
+              );
+              if(f===0) {
+                const ni = OPEN_STR[si];
+                const deg = scale.indexOf(ni);
+                return (
+                  <circle key={si} cx={x} cy={MT-16} r={8}
+                    fill="none" stroke={deg>=0?CLR[deg]:'#4ECDC4'} strokeWidth={2}/>
+                );
+              }
+              return null;
+            })}
+            {frets.map((f,si) => {
+              if(f<=0) return null;
+              const row = f - dispStart;
+              if(row<0||row>=SHOW_FRETS) return null;
+              const x=ML+si*CW, y=MT+row*RH+RH/2;
+              const ni  = noteAt(si,f);
+              const deg = scale.indexOf(ni);
+              const c   = deg>=0 ? CLR[deg] : '#555';
+              return (
+                <g key={si}>
+                  <circle cx={x} cy={y} r={15} fill={c}/>
+                  <text x={x} y={y+5} textAnchor="middle"
+                    fontSize={10} fill="#000" fontWeight="700">{NOTES[ni]}</text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      );
+    }
+
+    /* ── FRETBOARD ───────────────────────────────────────────────────── */
+    function Fretboard({ root }) {
+      const scale   = majorScale(root);
+      const FRETS=12, STRINGS=6, FW=54, SH=40, ML=50, MT=24;
+      const W = ML + FRETS*FW + 36;
+      const H = MT + (STRINGS-1)*SH + 50;
+
+      return (
+        <div style={{overflowX:'auto', paddingBottom:8}}>
+          <svg width={W} height={H}>
+            <rect x={ML} y={MT} width={FRETS*FW} height={(STRINGS-1)*SH} fill="#3a2618" rx={4}/>
+            <rect x={ML-5} y={MT} width={7} height={(STRINGS-1)*SH} fill="#c8b460" rx={1}/>
+            {Array.from({length:FRETS}, (_,i) => (
+              <line key={i} x1={ML+(i+1)*FW} y1={MT} x2={ML+(i+1)*FW} y2={MT+(STRINGS-1)*SH}
+                stroke="#6b4c3b" strokeWidth={1.5}/>
+            ))}
+            {Array.from({length:STRINGS}, (_,si) => {
+              const thick = [1.2,1.5,1.9,2.4,3.0,3.8][si];
+              return (
+                <line key={si} x1={ML-20} y1={MT+si*SH} x2={ML+FRETS*FW} y2={MT+si*SH}
+                  stroke="#c8a060" strokeWidth={thick} opacity={0.75}/>
+              );
+            })}
+            {[3,5,7,9].map(fd => (
+              <circle key={fd} cx={ML+(fd-0.5)*FW} cy={MT+(STRINGS-1)*SH/2} r={5} fill="#5a3d2b"/>
+            ))}
+            {[SH,(STRINGS-2)*SH].map((yo,k) => (
+              <circle key={k} cx={ML+11.5*FW} cy={MT+yo} r={5} fill="#5a3d2b"/>
+            ))}
+            <text x={ML-20} y={MT+(STRINGS-1)*SH+22} textAnchor="middle" fontSize={10} fill="#4a4060">O</text>
+            {[1,3,5,7,9,12].map(fd => (
+              <text key={fd} x={ML+(fd-0.5)*FW} y={MT+(STRINGS-1)*SH+22}
+                textAnchor="middle" fontSize={10} fill="#4a4060">{fd}</text>
+            ))}
+            {Array.from({length:STRINGS}, (_,si) => (
+              <text key={si} x={ML-30} y={MT+si*SH+5}
+                textAnchor="middle" fontSize={12} fill="#7a6890" fontWeight="700">
+                {STR_NAMES[STRINGS-1-si]}
+              </text>
+            ))}
+            {Array.from({length:STRINGS}, (_,si) => {
+              const openNote = OPEN_STR[STRINGS-1-si];
+              return Array.from({length:FRETS+1}, (_,fi) => {
+                const note = (openNote+fi)%12;
+                const deg  = scale.indexOf(note);
+                if(deg<0) return null;
+                const cx = fi===0 ? ML-20 : ML+(fi-0.5)*FW;
+                const cy = MT+si*SH;
+                return (
+                  <g key={`${si}-${fi}`}>
+                    <circle cx={cx} cy={cy} r={15} fill={CLR[deg]} opacity={0.95}/>
+                    <text x={cx} y={cy+5} textAnchor="middle"
+                      fontSize={10} fill="#000" fontWeight="700">{NOTES[note]}</text>
+                  </g>
+                );
+              });
+            })}
+          </svg>
+        </div>
+      );
+    }
+
+    /* ── BARRE EXPLAINER ─────────────────────────────────────────────── */
+    function BarreExplainer({ root }) {
+      const scale = majorScale(root);
+      const chord = [scale[0], scale[2], scale[4]];
+      return (
+        <div style={{background:'#16132a', borderRadius:10, padding:'14px 18px',
+          border:'1px solid #2a2840', fontSize:13, lineHeight:1.8, color:'#8880a0'}}>
+          <div style={{fontFamily:"'Georgia',serif", fontSize:16, color:'#e8e0f0', marginBottom:8}}>
+            Building <span style={{color:'#FFD700'}}>{NOTES[root]} major</span>
+          </div>
+          <p style={{margin:'0 0 8px'}}>
+            A major chord takes the{' '}
+            <strong style={{color:CLR[0]}}>1st</strong>,{' '}
+            <strong style={{color:CLR[2]}}>3rd</strong>, and{' '}
+            <strong style={{color:CLR[4]}}>5th</strong>{' '}
+            notes of the scale:
+          </p>
+          <div style={{fontFamily:'monospace', background:'#0f0d1a', borderRadius:6,
+            padding:'8px 12px', fontSize:15, marginBottom:10}}>
+            <span style={{color:CLR[0]}}>{NOTES[chord[0]]}</span>
+            {' + '}
+            <span style={{color:CLR[2]}}>{NOTES[chord[1]]}</span>
+            {' + '}
+            <span style={{color:CLR[4]}}>{NOTES[chord[2]]}</span>
+            {' = '}
+            <strong style={{color:'#e8e0f0'}}>{NOTES[root]} major</strong>
+          </div>
+          <div style={{fontSize:12, color:'#4a4060', borderTop:'1px solid #2a2840', paddingTop:8}}>
+            <strong style={{color:'#6a5e80'}}>Transposing on guitar:</strong>{' '}
+            Chord shapes are movable patterns on the fretboard. Slide an E-shape
+            up 2 frets and you move up by a Tone. The shape stays identical — only the
+            fret position changes.
+          </div>
+        </div>
+      );
+    }
+
+    /* ── APP ─────────────────────────────────────────────────────────── */
+    function App() {
+      const [key, setKey]   = useState(0);
+      const [view, setView] = useState('fretboard');
+      const scale = majorScale(key);
+
+      const btn = (active, onClick, children) => (
+        <button onClick={onClick} style={{
+          padding:'9px 22px', borderRadius:20, border:'none', cursor:'pointer',
+          fontSize:13, fontWeight:700, transition:'all 0.2s',
+          background: active ? '#4ECDC4' : '#1e1c30',
+          color:       active ? '#000'   : '#666',
+        }}>{children}</button>
+      );
+
+      return (
+        <div style={{fontFamily:"'Georgia', serif", background:'#0d0b1a', minHeight:'100vh',
+          color:'#e8e0f0', padding:'24px 20px 48px', maxWidth:960, margin:'0 auto'}}>
+
+          <div style={{textAlign:'center', marginBottom:28}}>
+            <div style={{fontSize:10,letterSpacing:4,color:'#444',textTransform:'uppercase',marginBottom:6}}>
+              Interactive Lesson
+            </div>
+            <h1 style={{margin:0, fontSize:34, color:'#4ECDC4', fontFamily:"'Crimson Pro',serif",
+              fontWeight:700, textShadow:'0 0 40px rgba(78,205,196,0.25)', letterSpacing:1}}>
+              🎸  Guitar — Keys &amp; Major Scales
+            </h1>
+            <p style={{color:'#4a4660', margin:'6px 0 0', fontSize:14}}>
+              Scale patterns, chord tones, and how transposing works on the neck
+            </p>
+          </div>
+
+          <div style={{marginBottom:22}}>
+            <div style={{textAlign:'center', marginBottom:10, fontSize:10, letterSpacing:3,
+              color:'#3a3858', textTransform:'uppercase'}}>Choose a key</div>
+            <div style={{display:'flex', justifyContent:'center', gap:6, flexWrap:'wrap'}}>
+              {NOTES.map((n,i) => (
+                <button key={i} onClick={() => setKey(i)} style={{
+                  width:52, height:52, borderRadius:'50%', cursor:'pointer', fontSize:14,
+                  fontWeight:700, transition:'all 0.18s',
+                  border:`2px solid ${key===i ? '#4ECDC4' : '#2a2840'}`,
+                  background: key===i ? '#4ECDC4' : IS_NAT[i] ? '#1d1b30' : '#131225',
+                  color:       key===i ? '#000'   : IS_NAT[i] ? '#ccc'    : '#666',
+                  boxShadow:   key===i ? '0 0 18px rgba(78,205,196,0.35)' : 'none',
+                }}>{n}</button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{background:'#16132a', border:'1px solid #2a2840', borderRadius:12,
+            padding:'14px 20px', marginBottom:24, textAlign:'center'}}>
+            <div style={{fontFamily:"'Crimson Pro',serif", fontSize:22, color:'#4ECDC4', marginBottom:10}}>
+              {NOTES[key]} Major Scale
+            </div>
+            <div style={{display:'flex', justifyContent:'center', gap:8, flexWrap:'wrap', marginBottom:8}}>
+              {scale.map((ni,deg) => (
+                <div key={deg} style={{
+                  padding:'5px 13px', borderRadius:20, fontSize:14, fontWeight:700,
+                  background:CLR[deg], color:'#000',
+                  outline:[0,2,4].includes(deg)?'2px solid rgba(255,255,255,0.45)':'none',
+                  outlineOffset:2,
+                }}>
+                  {NOTES[ni]} <span style={{opacity:0.55,fontSize:11}}>{deg+1}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{fontSize:12,color:'#3a3858'}}>
+              Chord tones outlined ·
+              <span style={{color:CLR[0]}}> Root</span> ·
+              <span style={{color:CLR[2]}}> 3rd</span> ·
+              <span style={{color:CLR[4]}}> 5th</span>
+            </div>
+          </div>
+
+          <div style={{display:'flex', justifyContent:'center', gap:6, marginBottom:22,
+            background:'#13112a', padding:5, borderRadius:24, maxWidth:360, margin:'0 auto 22px'}}>
+            {btn(view==='fretboard', ()=>setView('fretboard'), '🎸 Full Fretboard')}
+            {btn(view==='chord',     ()=>setView('chord'),     '🤘 Chord Diagram')}
+          </div>
+
+          {view === 'fretboard' ? (
+            <div>
+              <h3 style={{fontFamily:"'Crimson Pro',serif", color:'#8880c0',
+                borderBottom:'1px solid #2a2840', paddingBottom:8, marginBottom:8, fontSize:18}}>
+                {NOTES[key]} Major Scale — All Positions (Frets 0–12)
+              </h3>
+              <p style={{color:'#4a4660', fontSize:13, marginBottom:14}}>
+                Every coloured dot is a note in the {NOTES[key]} major scale.{' '}
+                <strong style={{color:CLR[0]}}>Gold = Root</strong>,{' '}
+                <strong style={{color:CLR[2]}}>Coral = 3rd</strong>,{' '}
+                <strong style={{color:CLR[4]}}>Teal = 5th</strong> (these three make the chord).
+                Unlit fret positions are not in the scale.
+              </p>
+              <Fretboard root={key}/>
+              <div style={{marginTop:12, padding:'10px 16px', background:'#16132a',
+                borderRadius:8, fontSize:13, color:'#4a4660', border:'1px solid #2a2840'}}>
+                💡 Notice how the same coloured pattern repeats every 12 frets — an octave.
+                Barre chords let you slide this pattern to any key.
+              </div>
+            </div>
+          ) : (
+            <div>
+              <h3 style={{fontFamily:"'Crimson Pro',serif", color:'#8880c0',
+                borderBottom:'1px solid #2a2840', paddingBottom:8, marginBottom:16, fontSize:18}}>
+                {NOTES[key]} Major — Chord Voicing &amp; Theory
+              </h3>
+              <div style={{display:'flex', gap:28, flexWrap:'wrap', justifyContent:'center'}}>
+                <ChordDiagram root={key}/>
+                <div style={{flex:1, minWidth:220, maxWidth:360}}>
+                  <BarreExplainer root={key}/>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div style={{marginTop:28, padding:'12px 18px', background:'#16132a',
+            borderRadius:12, border:'1px solid #2a2840',
+            display:'flex', gap:18, flexWrap:'wrap', alignItems:'center'}}>
+            <span style={{fontSize:10,color:'#3a3858',letterSpacing:2,textTransform:'uppercase'}}>Legend</span>
+            {[
+              {c:CLR[0], l:'Root (1st)'},
+              {c:CLR[2], l:'3rd (chord tone)'},
+              {c:CLR[4], l:'5th (chord tone)'},
+              {c:CLR[1], l:'Other scale notes'},
+            ].map(({c,l}) => (
+              <div key={l} style={{display:'flex', alignItems:'center', gap:6}}>
+                <div style={{width:12,height:12,borderRadius:'50%',background:c}}/>
+                <span style={{fontSize:12,color:'#5a5080'}}>{l}</span>
+              </div>
+            ))}
+            <span style={{fontSize:12,color:'#4a4060'}}>× = muted string · ○ = open string</span>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>
